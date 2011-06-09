@@ -16,7 +16,7 @@ HTTP_REQUEST_PATH = 'https://dns.he.net/index.cgi'
 
 class HurricaneError(Exception):
 	pass
-	
+
 class HurricaneDNS(object):
 	def __init__(self, username, password):
 		self.__username = username
@@ -111,7 +111,7 @@ class HurricaneDNS(object):
 	def add_record(self, domain, host, rtype, value, mx=None, ttl=86400):
 		self.__add_or_edit_record(domain, None, host, rtype, value, mx, ttl)
 		
-	def delete_record(self, domain, record_id):
+	def del_record(self, domain, record_id):
 		d = self.get_domain(domain.lower())
 		if d['type'] == 'slave':
 			raise HurricaneError('Domain "%s" is a slave zone, this is a bad idea!' % domain)
@@ -129,36 +129,35 @@ class HurricaneDNS(object):
 		d['records'] = None
 		
 	
-	def delete_records(self, domain, host, rtype, value=None, mx=None, ttl=None):
+	def del_records(self, domain, host, rtype=None, value=None, mx=None, ttl=None):
 		domain = domain.lower()
 		d = self.get_domain(domain)
 		if d['type'] == 'slave':
 			raise HurricaneError('Domain "%s" is a slave zone, this is a bad idea!' % domain)
 		
-		for r in self.get_records(domain, host, rtype, value):
-			if r['type'] == 'locked':
+		for r in self.get_records(domain, host, rtype, value, mx, ttl):
+			if r['status'] == 'locked':
 				continue
-			self.delete_record(domain, r['id']) 
+			self.del_record(domain, r['id']) 
 		
-	def delete_domain(self, domain):
+	def del_domain(self, domain):
 		domain = domain.lower()
 		self.__process({
-			'delete_id': self.get_domain_id(domain),
+			'delete_id': self.get_domain(domain)['id'],
 			'account': self.__account,
 			'remove_domain': 1
 		})
 		# HACK: instead we could just remove the one domain
 		self.__domains = None
-	
-	def get_domain_id(self, domain):
-		return self.get_domain(domain)['id']
 			
 	def get_domain(self, domain):
+		domain = domain.lower()
 		domains = self.cache_domains()
-		if domain in domains:
-			return domains[domain]
-		else:
-			raise HurricaneError('Domain "%s" does not exist' % domain)
+		for d in self.cache_domains():
+			if d['domain'] == domain:
+				return d
+
+		raise HurricaneError('Domain "%s" does not exist' % domain)
 			
 	def cache_domains(self):
 		if not self.__domains:
@@ -176,11 +175,13 @@ class HurricaneDNS(object):
 					domains[d[2]]['type'] = 'reverse'
 				continue			
 			domains[d[2]] = {
+				'domain': d[2],
 				'id': d[3],
 				'type': d[1] if len(d[1]) != 0 else d[0],
 				'records': None
 			}
-		return domains
+
+		return domains.values()
 		
 	def get_record(self, domain, record_id):
 		records = self.cache_records(domain)
@@ -189,17 +190,17 @@ class HurricaneDNS(object):
 				return r
 		raise HurricaneError('Record %s does not exist for domain "%s"' % (record_id, domain))
 		
-	def get_records(self, domain, host, rtype, value=None, mx=None, ttl=None):
+	def get_records(self, domain, host, rtype=None, value=None, mx=None, ttl=None):
 		records = self.cache_records(domain)
 		results = []
 		for r in records:
-			if (r['rtype'] == rtype and r['host'] == host and
+			if (r['host'] == host and
+			   (rtype = None or r['type'] == rtype) and
 			   (value == None or r['value'] == value) and
 			   (mx == None or r['mx'] == mx) and
 			   (ttl == None or r['ttl'] == ttl)):
 					results.append(r)
 		return results
-#		raise HurricaneError('Record "%s" (%s) does not exist for domain "%s"' % (host, rtype, domain))
 		
 	def cache_records(self, domain):
 		d = self.get_domain(domain)
@@ -217,16 +218,16 @@ class HurricaneDNS(object):
 				'hosted_dns_editzone': ''
 			})
 			
-			all = re.findall('<tr class="dns_tr(?:_([^"]*))?"[^>]*>' + '\s+<td[^>]+>([^<]+)</td>' * 3 +
+			all = re.findall(r'<tr class="dns_tr(?:_([^"]*))?"[^>]*>' + '\s+<td[^>]+>([^<]+)</td>' * 3 +
 			                 '\s+<td[^>]+><img[^>]+data="([^"]+)"[^>]+></td>' +
 			                 '\s+<td[^>]+>([^<]+)</td>' * 3, res)
 			records = [{
 					'id': r[2],
-					'type': r[0],
+					'status': r[0],
 					'host': r[3],
-					'rtype': r[4],
+					'type': r[4],
 					'ttl': r[5],
-					'priority': r[6],
+					'mx': r[6],
 					'value': r[7]
 				} for r in all]
 		elif d['type'] == 'slave':
@@ -236,15 +237,15 @@ class HurricaneDNS(object):
 				'action': 'edit'
 			})
 			
-			all = re.findall('<tr class="dns_tr" id="([^"]+)"[^>]*>' +
+			all = re.findall(r'<tr class="dns_tr" id="([^"]+)"[^>]*>' +
 			                 '\s+<td[^>]+>([^<]+)</td>' * 5, res)
 			records = [{
 					'id': r[0],
-					'type': 'locked',
+					'status': 'locked',
 					'host': r[1],
-					'rtype': r[2],
+					'type': r[2],
 					'ttl': r[3],
-					'priority': r[4],
+					'mx': r[4],
 					'value': r[5]
 				} for r in all]
 		return records
@@ -275,13 +276,13 @@ class HurricaneDNS(object):
 	def __process(self, data=None):
 		if isinstance(data, dict) or isinstance(data, list):
 			data = urllib.urlencode(data)
-
+		
 		res = self.__opener.open(HTTP_REQUEST_PATH, data)
 		res = res.read()
-
+		
 		if __debug__:
-			print '%s\n' % str(data)
-
+			print '%s' % str(data)
+		
 		if 'id="dns_err"' in res:
 			msg = re.search(r'id="dns_err"[^>]*>([^<]*)', res)
 			if msg:
