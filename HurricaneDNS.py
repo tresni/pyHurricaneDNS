@@ -195,7 +195,7 @@ class HurricaneDNS(object):
 		results = []
 		for r in records:
 			if (r['host'] == host and
-			   (rtype = None or r['type'] == rtype) and
+			   (rtype == None or r['type'] == rtype) and
 			   (value == None or r['value'] == value) and
 			   (mx == None or r['mx'] == mx) and
 			   (ttl == None or r['ttl'] == ttl)):
