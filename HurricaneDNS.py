@@ -10,6 +10,7 @@ import cookielib
 import re
 import urllib
 import urllib2
+import HTMLParser
 
 HTTP_USER_AGENT = 'PyHurriceDNS/%s' % __version__
 HTTP_REQUEST_PATH = 'https://dns.he.net/index.cgi'
@@ -29,6 +30,7 @@ class HurricaneDNS(object):
         self.__opener.addheaders = [
             ('User-Agent', HTTP_USER_AGENT),
         ]
+        self.__htmlParser = HTMLParser.HTMLParser()
 
         self.__domains = {}
 
@@ -228,7 +230,7 @@ class HurricaneDNS(object):
                 'type': r[4],
                 'ttl': r[5],
                 'mx': r[6],
-                'value': r[7]
+                'value': self.__htmlParser.unescape(r[7])
             } for r in all]
         elif d['type'] == 'slave':
             res = self.__process({
@@ -246,7 +248,7 @@ class HurricaneDNS(object):
                 'type': r[2],
                 'ttl': r[3],
                 'mx': r[4],
-                'value': r[5]
+                'value': self.__htmlParser.unescape(r[5])
             } for r in all]
         return records
 
