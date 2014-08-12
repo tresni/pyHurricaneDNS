@@ -1,7 +1,14 @@
 #!/usr/bin/env python
-"""HurricaneDNS Command Line tools/shell"""
+"""HurricaneDNS Command Line tools/shell
 
-__version__ = '0.1'
+Inspired by & heavily borrowed from the EveryDNS Command Line tool/shell by
+    Scott Yang: http://svn.fucoder.com/fucoder/pyeverydns/everydnscmd.py
+"""
+__author__ = "Brian Hartvigsen <brian.andrew@brianandjenny.com>"
+__copyright__ = "Copyright 2014, Brian Hartvigsen"
+__credits__ = ["Scott Yang", "Brian Hartvigsen"]
+__license__ = "MIT"
+__version__ = "0.2"
 
 import cmd
 import os
