@@ -63,8 +63,9 @@ class HurricaneDNS(object):
             data['add_slave'] = domain
             data['action'] = 'add_slave'
         elif method:
-            data['add_recerse'] = domain
+            data['add_reverse'] = domain
             data['method'] = method
+            data['action'] = 'add_reverse'
         else:
             data['add_domain'] = domain
             data['action'] = 'add_zone'
@@ -100,7 +101,7 @@ class HurricaneDNS(object):
         d['records'] = None
 
     def edit_record(self, domain, host, rtype, old_value=None, old_mx=None, old_ttl=None, value=None, mx=None, ttl=None):
-        if value == None and ttl == None and not (rtype == 'MX' and mx != None):
+        if value is None and ttl is None and not (rtype == 'MX' and mx is not None):
             raise HurricaneError('You must specify one or more of value, ttl or mx priority')
 
         record = list(self.get_records(domain, host, rtype, old_value, old_mx, old_ttl))
