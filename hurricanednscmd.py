@@ -4,10 +4,13 @@
 __version__ = '0.1'
 
 import cmd
-import everydnslib
 import os
 import re
 import sys
+
+import HurricaneDNS as everydnslib
+everydnslib.EveryDNS = everydnslib.HurricaneDNS
+everydnslib.LoginFailed = everydnslib.HurricaneError
 
 
 def write_help(func):
@@ -150,6 +153,13 @@ class EveryDNSShell(cmd.Cmd):
 
     def _make_prompt(self):
         self.prompt = '[%s@everydns] ' % self.__username
+
+    def cmdloop(self):
+        try:
+            cmd.Cmd.cmdloop(self)
+        except KeyboardInterrupt:
+            print
+            self.cmdloop()
 
 
 def main():
