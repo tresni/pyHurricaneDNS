@@ -26,6 +26,14 @@ class HurricaneError(Exception):
     pass
 
 
+class HurricaneAuthenticationError(HurricaneError):
+    pass
+
+
+class HurricaneBadArgumentError(HurricaneError):
+    pass
+
+
 class HurricaneDNS(object):
     def __init__(self, username, password):
         self.__username = username
@@ -48,7 +56,7 @@ class HurricaneDNS(object):
         }
 
         if master and method:
-            raise HurricaneError('Domain "%s" can not be both secondary and reverse' % domain)
+            raise HurricaneBadArgumentError('Domain "%s" can not be both slave and reverse' % domain)
 
         if master:
             if isinstance(master, list) or isinstance(master, tuple):
@@ -70,7 +78,10 @@ class HurricaneDNS(object):
             data['add_domain'] = domain
             data['action'] = 'add_zone'
 
-        self.__process(data)
+        try:
+            self.__process(data)
+        except HurricaneError as e:
+            raise HurricaneBadArgumentError(e)
         # HACK: Instead we should just add the domain
         self.__domains = None
 
@@ -79,24 +90,27 @@ class HurricaneDNS(object):
         d = self.get_domain(domain)
 
         if d['type'] == 'slave':
-            raise HurricaneError('Domain "%s" is a slave zone, this is a bad idea!' % domain)
+            raise HurricaneBadArgumentError('Domain "%s" is a slave zone, this is a bad idea!' % domain)
 
-        res = self.__process({
-            'account': '',  # self.__account,
-            'menu': 'edit_zone',
-            'hosted_dns_zoneid': d['id'],
-            'hosted_dns_recordid': record_id or '',
-            'hosted_dns_editzone': 1,
-            'hosted_dns_editrecord': 'Update' if record_id else 'Submit',
-            'Name': host.lower(),
-            'Type': rtype,
-            'Priority': mx or '',
-            'Content': value,
-            'TTL': ttl
-        })
+        try:
+            res = self.__process({
+                'account': '',  # self.__account,
+                'menu': 'edit_zone',
+                'hosted_dns_zoneid': d['id'],
+                'hosted_dns_recordid': record_id or '',
+                'hosted_dns_editzone': 1,
+                'hosted_dns_editrecord': 'Update' if record_id else 'Submit',
+                'Name': host.lower(),
+                'Type': rtype,
+                'Priority': mx or '',
+                'Content': value,
+                'TTL': ttl
+            })
+        except HurricaneError as e:
+            raise HurricaneBadArgumentError(e)
 
         if res.find('.//div[@id="dns_status"]') is None:
-            raise HurricaneError('Record "%s" (%s) not added or modified for domain "%s"' % (host, rtype, domain))
+            raise HurricaneBadArgumentError('Record "%s" (%s) not added or modified for domain "%s"' % (host, rtype, domain))
         # HACK: Be better to invalidate a single record...
         d['records'] = None
 
@@ -106,7 +120,7 @@ class HurricaneDNS(object):
 
         record = list(self.get_records(domain, host, rtype, old_value, old_mx, old_ttl))
         if len(record) > 1:
-            raise HurricaneError('Criteria matches multiple records, please be more specific')
+            raise HurricaneBadArgumentError('Criteria matches multiple records, please be more specific')
         else:
             record = record[0]
 
@@ -125,7 +139,7 @@ class HurricaneDNS(object):
     def del_record(self, domain, record_id):
         d = self.get_domain(domain.lower())
         if d['type'] == 'slave':
-            raise HurricaneError('Domain "%s" is a slave zone, this is a bad idea!' % domain)
+            raise HurricaneBadArgumentError('Domain "%s" is a slave zone, this is a bad idea!' % domain)
 
         self.__process({
             'hosted_dns_zoneid': d['id'],
@@ -143,7 +157,7 @@ class HurricaneDNS(object):
         domain = domain.lower()
         d = self.get_domain(domain)
         if d['type'] == 'slave':
-            raise HurricaneError('Domain "%s" is a slave zone, this is a bad idea!' % domain)
+            raise HurricaneBadArgumentError('Domain "%s" is a slave zone, this is a bad idea!' % domain)
 
         for r in self.get_records(domain, host, rtype, value, mx, ttl):
             if r['status'] == 'locked':
@@ -166,7 +180,7 @@ class HurricaneDNS(object):
             if d['domain'] == domain:
                 return d
 
-        raise HurricaneError('Domain "%s" does not exist' % domain)
+        raise HurricaneBadArgumentError('Domain "%s" does not exist' % domain)
 
     def cache_domains(self):
         if not self.__domains:
@@ -203,7 +217,7 @@ class HurricaneDNS(object):
         for r in records:
             if r['id'] == record_id:
                 return r
-        raise HurricaneError('Record %s does not exist for domain "%s"' % (record_id, domain))
+        raise HurricaneBadArgumentError('Record %s does not exist for domain "%s"' % (record_id, domain))
 
     def get_records(self, domain, host, rtype=None, value=None, mx=None, ttl=None):
         records = self.cache_records(domain)
@@ -281,17 +295,20 @@ class HurricaneDNS(object):
         self.__process()
 
         # submit the login form
-        res = self.__process({
-            'email': self.__username,
-            'pass': self.__password,
-            'submit': 'Login!'
-        })
+        try:
+            res = self.__process({
+                'email': self.__username,
+                'pass': self.__password,
+                'submit': 'Login!'
+            })
+        except HurricaneError:
+            raise HurricaneAuthenticationError("Invalid Username/Password")
 
         account = res.find('.//input[@type="hidden"][@name="account"]').get('value')
         if account:
             self.__account = account
         else:
-            raise HurricaneError('Account not found')
+            raise HurricaneAuthenticationError('Login failure')
 
         return True
 
