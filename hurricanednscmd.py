@@ -37,6 +37,9 @@ class EveryDNSShell(cmd.Cmd):
     def default(self, line):
         self._do_error('command not found')
 
+    def completedefault(self, text, line, begidx, endidx):
+        pass
+
     def do_add(self, args):
         """!NAME
         add - Add a domain/record
@@ -69,6 +72,37 @@ class EveryDNSShell(cmd.Cmd):
         else:
             self._do_error('Invalid arguments')
 
+    def complete_add(self, text, line, begidx, endidx):
+        args = line.split()
+        pos = len(args)
+        if not text:
+            pos += 1
+
+        domains = map(lambda x: x['domain'], self._get_edns().cache_domains())
+        if pos == 2:
+            domain = args[1] if len(args) == 2 else None
+            domains = filter(lambda x: x.startswith(domain) if domain else True, domains)
+            return domains
+        elif not args[1] in domains:
+            if pos == 3:
+                option = args[2] if len(args) == 3 else None
+                options = filter(lambda x: x.startswith(option) if option else True, ["method=", "master="])
+                return options
+            else:
+                return []
+        else:
+            if pos == 4:
+                option = args[3] if len(args) == 4 else None
+                types = []
+                if args[1].endswith('.in-addr.arpa') or args[1].endswith('.ip6.arpa'):
+                    types = ["CNAME", "NS", "PTR", "TXT"]
+                else:
+                    types = ["A", "AAAA", "CNAME", "MX", "NS", "TXT", "AFSDB", "HINFO", "RP", "LOC", "NAPTR", "PTR", "SSHFP", "SPF", "SRV"]
+                options = filter(lambda x: x.startswith(option) if option else True, types)
+                return options
+            else:
+                pass
+
     def do_del(self, args):
         """!NAME
         del - Delete domain or host records
@@ -95,6 +129,10 @@ class EveryDNSShell(cmd.Cmd):
 
     def do_exit(self, args):
         return 1
+
+    def complete_ls(self, text, line, begidx, endidx):
+        domains = filter(lambda x: x.startswith(text) if text else True, map(lambda x: x['domain'], self._get_edns().cache_domains()))
+        return domains
 
     def do_ls(self, args):
         """!NAME
