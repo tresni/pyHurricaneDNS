@@ -11,6 +11,12 @@ import re
 import urllib
 import urllib2
 import HTMLParser
+import html5lib
+import lxml
+
+# Basically we just want to make sure it's here.  We need lxml because
+# ElementTree does not support parent relationships in XPath
+assert lxml
 
 HTTP_USER_AGENT = 'PyHurriceDNS/%s' % __version__
 HTTP_REQUEST_PATH = 'https://dns.he.net/index.cgi'
@@ -88,7 +94,7 @@ class HurricaneDNS(object):
             'TTL': ttl
         })
 
-        if 'id="dns_status"' not in res:
+        if res.find('.//div[@id="dns_status"]') is None:
             raise HurricaneError('Record "%s" (%s) not added or modified for domain "%s"' % (host, rtype, domain))
         # HACK: Be better to invalidate a single record...
         d['records'] = None
@@ -169,17 +175,23 @@ class HurricaneDNS(object):
     def list_domains(self):
         self.login()
         res = self.__process()
-        all = re.findall(r'(?:menu=edit_([^&"]+)|menu="edit_(reverse)").*?onclick="delete_dom\(this\);" name="([^"]+)" value="([^"]+)', res, re.M | re.S)
         domains = {}
-        for d in all:
-            if d[2] in domains:
-                if d[1] == 'reverse' and domains[d[2]]['type'] == 'zone':
-                    domains[d[2]]['type'] = 'reverse'
-                continue
-            domains[d[2]] = {
-                'domain': d[2],
-                'id': d[3],
-                'type': d[1] if len(d[1]) != 0 else d[0],
+
+        the_list = res.findall('.//img[@alt="edit"]')
+        the_list += res.findall('.//img[@alt="information"]')
+        for d in the_list:
+            info = d.findall('./../../td')
+            info = info[len(info) - 1].find('img')
+            domain_type = 'zone'
+            if d.get('menu') is not None:
+                domain_type = re.match(r'edit_(.*)', d.get('menu')).group(1)
+            else:
+                domain_type = re.search(r'menu=edit_([a-z]+)', d.get('onclick')).group(1)
+
+            domains[info.get('name')] = {
+                'domain': info.get('name'),
+                'id': info.get('value'),
+                'type': domain_type,
                 'records': None
             }
 
@@ -213,25 +225,33 @@ class HurricaneDNS(object):
     def list_records(self, domain):
         self.login()
         d = self.get_domain(domain)
-        if d['type'] in ('zone', 'reverse'):
+        records = []
+
+        if d['type'] == 'zone':
             res = self.__process({
                 'hosted_dns_zoneid': d['id'],
                 'menu': 'edit_zone',
                 'hosted_dns_editzone': ''
             })
 
-            all = re.findall(r'<tr class="dns_tr(?:_([^"]*))?"[^>]*>' + '\s+<td[^>]+>([^<]+)</td>' * 3 +
-                             '\s+<td[^>]+><img[^>]+data="([^"]+)"[^>]+></td>' +
-                             '\s+<td[^>]+>([^<]+)</td>' * 3, res)
-            records = [{
-                'id': r[2],
-                'status': r[0],
-                'host': r[3],
-                'type': r[4],
-                'ttl': r[5],
-                'mx': r[6],
-                'value': self.__htmlParser.unescape(r[7])
-            } for r in all]
+            # Drop the first row as it's actually headers...
+            rows = res.findall('.//div[@id="dns_main_content"]/table//tr')[1:]
+            for r in rows:
+                data = r.findall('td')
+                status = re.search(r'dns_tr_(.*)', r.get('class'))
+                if status:
+                    status = status.group(1)
+
+                records.append({
+                    'id': data[1].text,
+                    'status': status,
+                    'host': data[2].text,
+                    'type': data[3].find('img').get('data'),
+                    'ttl': data[4].text,
+                    'mx': data[5].text,
+                    'value': data[6].text,
+                    'extended': data[6].get('data')
+                })
         elif d['type'] == 'slave':
             res = self.__process({
                 'domid': d['id'],
@@ -239,17 +259,16 @@ class HurricaneDNS(object):
                 'action': 'edit'
             })
 
-            all = re.findall(r'<tr class="dns_tr" id="([^"]+)"[^>]*>' +
-                             '\s+<td[^>]+>([^<]+)</td>' * 5, res)
+            rows = res.findall('.//tr[@class="dns_tr"]')
             records = [{
-                'id': r[0],
+                'id': r.get('id'),
                 'status': 'locked',
-                'host': r[1],
-                'type': r[2],
-                'ttl': r[3],
-                'mx': r[4],
-                'value': self.__htmlParser.unescape(r[5])
-            } for r in all]
+                'host': r.findall('td')[0].text,
+                'type': r.findall('td')[1].text,
+                'ttl': r.findall('td')[2].text,
+                'mx': r.findall('td')[3].text,
+                'value': r.findall('td')[4].text
+            } for r in rows]
         return records
 
     def login(self):
@@ -267,9 +286,9 @@ class HurricaneDNS(object):
             'submit': 'Login!'
         })
 
-        account = re.search(r'name="account" value="([^"]+)"', res)
+        account = res.find('.//input[@type="hidden"][@name="account"]').get('value')
         if account:
-            self.__account = account.group(1)
+            self.__account = account
         else:
             raise HurricaneError('Account not found')
 
@@ -279,17 +298,10 @@ class HurricaneDNS(object):
         if isinstance(data, dict) or isinstance(data, list):
             data = urllib.urlencode(data)
 
-        res = self.__opener.open(HTTP_REQUEST_PATH, data)
-        res = res.read()
+        res = html5lib.parse(self.__opener.open(HTTP_REQUEST_PATH, data), namespaceHTMLElements=False, treebuilder="lxml")
 
-        if __debug__:
-            print '%s' % str(data)
+        error = res.find('.//div[@id="content"]/div/div[@id="dns_err"]')
+        if error is not None:
+            raise HurricaneError(error.text)
 
-        if 'id="dns_err"' in res:
-            msg = re.search(r'id="dns_err"[^>]*>([^<]*)', res)
-            if msg:
-                raise HurricaneError(msg.group(1))
-            else:
-                raise HurricaneError('Unknown error')
-        else:
-            return res
+        return res
