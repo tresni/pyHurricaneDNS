@@ -10,7 +10,8 @@ import sys
 
 import HurricaneDNS as everydnslib
 everydnslib.EveryDNS = everydnslib.HurricaneDNS
-everydnslib.LoginFailed = everydnslib.HurricaneError
+everydnslib.LoginFailed = everydnslib.HurricaneAuthenticationError
+everydnslib.Error = everydnslib.HurricaneError
 
 
 def write_help(func):
@@ -56,21 +57,20 @@ class EveryDNSShell(cmd.Cmd):
 
         """
         args = split_args(args)
-        if len(args) < 3:
-            domain = args[0]
-            extra = {}
-            if len(args) == 2:
-                if args[1] == 'dynamic':
-                    extra['dynamic'] = True
-                elif args[1].startswith('secondary='):
-                    extra['secondary'] = args[1][10:]
-                elif args[1].startswith('webhop='):
-                    extra['webhop'] = args[1][7:]
-            self._get_edns().add_domain(domain, **extra)
-        elif 6 >= len(args) >= 4:
-            self._get_edns().add_record(*args)
-        else:
-            self._do_error('Invalid arguments')
+        try:
+            if len(args) < 3:
+                domain = args[0]
+                extra = {}
+                if len(args) == 2:
+                    (option, value) = args[1].split("=", 1)
+                    extra[option] = value
+                self._get_edns().add_domain(domain, **extra)
+            elif 6 >= len(args) >= 4:
+                    self._get_edns().add_record(*args)
+            else:
+                self._do_error('Invalid arguments')
+        except everydnslib.Error as e:
+            self._do_error(e)
 
     def complete_add(self, text, line, begidx, endidx):
         args = line.split()
@@ -118,10 +118,13 @@ class EveryDNSShell(cmd.Cmd):
 
         """
         args = split_args(args)
-        if len(args) == 1:
-            self._get_edns().del_domain(args[0])
-        elif len(args) > 1:
-            self._get_edns().del_records(*args)
+        try:
+            if len(args) == 1:
+                self._get_edns().del_domain(args[0])
+            elif len(args) > 1:
+                self._get_edns().del_records(*args)
+        except everydnslib.Error as e:
+            self._do_error(e)
 
     def do_EOF(self, args):
         print
@@ -206,9 +209,11 @@ def main():
         try:
             shell = EveryDNSShell(sys.argv[1], sys.argv[2])
             shell.cmdloop()
-        except everydnslib.LoginFailed:
-            print '%s: Invalid username/password' % myname
+        except everydnslib.LoginFailed as e:
+            print '%s: HE sent an error (%s)' % (myname, e)
             sys.exit(1)
+        except everydnslib.Error as e:
+            print '%s: %s' % (myname, e)
     else:
         print 'Usage: %s [username] [password]' % myname
 
