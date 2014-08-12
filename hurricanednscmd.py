@@ -160,7 +160,8 @@ class HurricaneDNSShell(cmd.Cmd):
             if records:
                 maxhost = max([len(item['host']) for item in records])
                 maxvalue = max([len(item['value']) for item in records])
-                template = '%%%ds %%-5s %%-%ds %%2s %%6s' % (maxhost, maxvalue)
+                maxttl = max([len(item['ttl']) for item in records])
+                template = '%%%ds %%-5s %%-%ds %%%ds %%6s' % (maxhost, maxvalue, maxttl)
                 print template % ('HOST', 'TYPE', 'VALUE', 'TTL', 'MX')
                 for record in records:
                     print template % (record['host'], record['type'],
