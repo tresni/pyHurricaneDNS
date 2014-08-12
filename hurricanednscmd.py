@@ -70,6 +70,11 @@ class HurricaneDNSShell(cmd.Cmd):
             self._do_error(e)
 
     def complete_add(self, text, line, begidx, endidx):
+        def filter_down(args, pos, possibiles):
+            start = args[pos-1] if len(args) == pos else None
+            final = filter(lambda x: x.startswith(start) if start else True, possibiles)
+            return final
+
         args = line.split()
         pos = len(args)
         if not text:
@@ -77,26 +82,20 @@ class HurricaneDNSShell(cmd.Cmd):
 
         domains = map(lambda x: x['domain'], self._get_hdns().cache_domains())
         if pos == 2:
-            domain = args[1] if len(args) == 2 else None
-            domains = filter(lambda x: x.startswith(domain) if domain else True, domains)
-            return domains
+            return filter_down(args, pos, domains)
         elif not args[1] in domains:
             if pos == 3:
-                option = args[2] if len(args) == 3 else None
-                options = filter(lambda x: x.startswith(option) if option else True, ["method=", "master="])
-                return options
+                return filter_down(args, pos, ["method=", "master="])
             else:
                 return []
         else:
             if pos == 4:
-                option = args[3] if len(args) == 4 else None
                 types = []
                 if args[1].endswith('.in-addr.arpa') or args[1].endswith('.ip6.arpa'):
                     types = ["CNAME", "NS", "PTR", "TXT"]
                 else:
                     types = ["A", "AAAA", "CNAME", "MX", "NS", "TXT", "AFSDB", "HINFO", "RP", "LOC", "NAPTR", "PTR", "SSHFP", "SPF", "SRV"]
-                options = filter(lambda x: x.startswith(option) if option else True, types)
-                return options
+                return filter_down(args, pos, types)
             else:
                 pass
 
