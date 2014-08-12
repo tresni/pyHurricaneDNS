@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""EveryDNS Command Line tools/shell"""
+"""HurricaneDNS Command Line tools/shell"""
 
 __version__ = '0.1'
 
@@ -8,10 +8,7 @@ import os
 import re
 import sys
 
-import HurricaneDNS as everydnslib
-everydnslib.EveryDNS = everydnslib.HurricaneDNS
-everydnslib.LoginFailed = everydnslib.HurricaneAuthenticationError
-everydnslib.Error = everydnslib.HurricaneError
+import HurricaneDNS
 
 
 def write_help(func):
@@ -27,12 +24,12 @@ def write_help(func):
     return decorator
 
 
-class EveryDNSShell(cmd.Cmd):
+class HurricaneDNSShell(cmd.Cmd):
     def __init__(self, username, password):
         cmd.Cmd.__init__(self)
         self.__username = username
         self.__password = password
-        self.__edns = None
+        self.__hdns = None
         self._make_prompt()
 
     def default(self, line):
@@ -50,7 +47,7 @@ class EveryDNSShell(cmd.Cmd):
         add domain host type value [mx] [ttl]
 
         !DESCRIPTION
-        Add either a domain or a host record to EveryDNS. If the number of
+        Add either a domain or a host record to HurricaneDNS. If the number of
         arguments is 1 or 2, it will add the domain in arg 1, and then use arg
         2 as option. If the number of arguments is between 4 and 6, it will
         add the host record with optional MX and TTL.
@@ -64,12 +61,12 @@ class EveryDNSShell(cmd.Cmd):
                 if len(args) == 2:
                     (option, value) = args[1].split("=", 1)
                     extra[option] = value
-                self._get_edns().add_domain(domain, **extra)
+                self._get_hdns().add_domain(domain, **extra)
             elif 6 >= len(args) >= 4:
-                    self._get_edns().add_record(*args)
+                    self._get_hdns().add_record(*args)
             else:
                 self._do_error('Invalid arguments')
-        except everydnslib.Error as e:
+        except HurricaneDNS.HurricaneError as e:
             self._do_error(e)
 
     def complete_add(self, text, line, begidx, endidx):
@@ -78,7 +75,7 @@ class EveryDNSShell(cmd.Cmd):
         if not text:
             pos += 1
 
-        domains = map(lambda x: x['domain'], self._get_edns().cache_domains())
+        domains = map(lambda x: x['domain'], self._get_hdns().cache_domains())
         if pos == 2:
             domain = args[1] if len(args) == 2 else None
             domains = filter(lambda x: x.startswith(domain) if domain else True, domains)
@@ -120,10 +117,10 @@ class EveryDNSShell(cmd.Cmd):
         args = split_args(args)
         try:
             if len(args) == 1:
-                self._get_edns().del_domain(args[0])
+                self._get_hdns().del_domain(args[0])
             elif len(args) > 1:
-                self._get_edns().del_records(*args)
-        except everydnslib.Error as e:
+                self._get_hdns().del_records(*args)
+        except HurricaneDNS.HurricaneError as e:
             self._do_error(e)
 
     def do_EOF(self, args):
@@ -134,7 +131,7 @@ class EveryDNSShell(cmd.Cmd):
         return 1
 
     def complete_ls(self, text, line, begidx, endidx):
-        domains = filter(lambda x: x.startswith(text) if text else True, map(lambda x: x['domain'], self._get_edns().cache_domains()))
+        domains = filter(lambda x: x.startswith(text) if text else True, map(lambda x: x['domain'], self._get_hdns().cache_domains()))
         return domains
 
     def do_ls(self, args):
@@ -151,14 +148,14 @@ class EveryDNSShell(cmd.Cmd):
 
         """
         if args:
-            existing = self._get_edns().cache_domains()
+            existing = self._get_hdns().cache_domains()
             existing = set([item['domain'] for item in existing])
             records = []
             for domain in split_args(args):
                 if domain.lower() not in existing:
                     self._do_error('Invalid domain: ' + domain)
                     continue
-                records.extend(self._get_edns().cache_records(domain))
+                records.extend(self._get_hdns().cache_records(domain))
 
             if records:
                 maxhost = max([len(item['host']) for item in records])
@@ -169,7 +166,7 @@ class EveryDNSShell(cmd.Cmd):
                     print template % (record['host'], record['type'],
                         record['value'], record['ttl'], record['mx'])
         else:
-            domains = self._get_edns().cache_domains()
+            domains = self._get_hdns().cache_domains()
             domains.sort(key=lambda item: item['domain'])
             print 'TYPE       DOMAIN'
             for domain in domains:
@@ -184,16 +181,16 @@ class EveryDNSShell(cmd.Cmd):
 
     def _do_error(self, errmsg):
         command = self.lastcmd.split()[0]
-        print 'ednssh: %s: %s' % (command, errmsg)
+        print 'hdnssh: %s: %s' % (command, errmsg)
 
-    def _get_edns(self):
-        if not self.__edns:
-            self.__edns = everydnslib.EveryDNS(self.__username,
+    def _get_hdns(self):
+        if not self.__hdns:
+            self.__hdns = HurricaneDNS.HurricaneDNS(self.__username,
                 self.__password)
-        return self.__edns
+        return self.__hdns
 
     def _make_prompt(self):
-        self.prompt = '[%s@everydns] ' % self.__username
+        self.prompt = '[%s@dns.he.net] ' % self.__username
 
     def cmdloop(self):
         try:
@@ -207,12 +204,12 @@ def main():
     myname = os.path.basename(sys.argv[0])
     if len(sys.argv) == 3:
         try:
-            shell = EveryDNSShell(sys.argv[1], sys.argv[2])
+            shell = HurricaneDNSShell(sys.argv[1], sys.argv[2])
             shell.cmdloop()
-        except everydnslib.LoginFailed as e:
+        except HurricaneDNS.HurricaneAuthenticationError as e:
             print '%s: HE sent an error (%s)' % (myname, e)
             sys.exit(1)
-        except everydnslib.Error as e:
+        except HurricaneDNS.HurricaneError as e:
             print '%s: %s' % (myname, e)
     else:
         print 'Usage: %s [username] [password]' % myname
