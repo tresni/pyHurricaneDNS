@@ -163,8 +163,7 @@ class HurricaneDNSShell(cmd.Cmd):
                 template = '%%%ds %%-5s %%-%ds %%%ds %%6s' % (maxhost, maxvalue, maxttl)
                 print template % ('HOST', 'TYPE', 'VALUE', 'TTL', 'MX')
                 for record in records:
-                    print template % (record['host'], record['type'],
-                        record['value'], record['ttl'], record['mx'])
+                    print template % (record['host'], record['type'], record['value'], record['ttl'], record['mx'])
         else:
             domains = self._get_hdns().cache_domains()
             domains.sort(key=lambda item: item['domain'])
@@ -185,8 +184,7 @@ class HurricaneDNSShell(cmd.Cmd):
 
     def _get_hdns(self):
         if not self.__hdns:
-            self.__hdns = HurricaneDNS.HurricaneDNS(self.__username,
-                self.__password)
+            self.__hdns = HurricaneDNS.HurricaneDNS(self.__username, self.__password)
         return self.__hdns
 
     def _make_prompt(self):
@@ -217,9 +215,9 @@ def main():
 
 def split_args(args):
     args = re.findall(
-        '"([^"]*?)"(?:\s|$)' + '|' + # double-quoted
-        "'([^']*?)'(?:\s|$)" + '|' + # single-quoted
-        '([^\s]+)(?:\s|$)',          # unquoted
+        '"([^"]*?)"(?:\s|$)' + '|' +  # double-quoted
+        "'([^']*?)'(?:\s|$)" + '|' +  # single-quoted
+        '([^\s]+)(?:\s|$)',           # unquoted
         args.strip())
 
     result = []
