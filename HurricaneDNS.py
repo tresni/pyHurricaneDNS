@@ -8,7 +8,6 @@ import cookielib
 import re
 import urllib
 import urllib2
-import HTMLParser
 import html5lib
 import lxml
 
@@ -48,7 +47,6 @@ class HurricaneDNS(object):
         self.__opener.addheaders = [
             ('User-Agent', HTTP_USER_AGENT),
         ]
-        self.__htmlParser = HTMLParser.HTMLParser()
 
         self.__domains = {}
 
