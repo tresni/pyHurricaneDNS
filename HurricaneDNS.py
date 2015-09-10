@@ -4,12 +4,6 @@ Hurricane Electric DNS library module
 Inspired by EveryDNS Python library by Scott Yang:
     http://svn.fucoder.com/fucoder/pyeverydns/everydnslib.py
 """
-__author__ = "Brian Hartvigsen <brian.andrew@brianandjenny.com>"
-__copyright__ = "Copyright 2014, Brian Hartvigsen"
-__credits__ = ["Scott Yang", "Brian Hartvigsen"]
-__license__ = "MIT"
-__version__ = "0.2"
-
 import cookielib
 import re
 import urllib
@@ -17,6 +11,12 @@ import urllib2
 import HTMLParser
 import html5lib
 import lxml
+
+__author__ = "Brian Hartvigsen <brian.andrew@brianandjenny.com>"
+__copyright__ = "Copyright 2014, Brian Hartvigsen"
+__credits__ = ["Scott Yang", "Brian Hartvigsen"]
+__license__ = "MIT"
+__version__ = "0.2"
 
 # Basically we just want to make sure it's here.  We need lxml because
 # ElementTree does not support parent relationships in XPath
