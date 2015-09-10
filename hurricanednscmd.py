@@ -210,11 +210,22 @@ def main():
     if len(sys.argv) == 3:
         try:
             shell = HurricaneDNSShell(sys.argv[1], sys.argv[2])
-            shell.cmdloop()
+            if sys.stdin.isatty():
+                shell.cmdloop()
+            else:
+                for line in sys.stdin.readlines():
+                    shell.onecmd(line)
         except HurricaneDNS.HurricaneAuthenticationError as e:
             print '%s: HE sent an error (%s)' % (myname, e)
             sys.exit(1)
         except HurricaneDNS.HurricaneError as e:
+            print '%s: %s' % (myname, e)
+    elif len(sys.argv) > 3:
+        try:
+            from pipes import quote
+            shell = HurricaneDNSShell(sys.argv[1], sys.argv[2])
+            shell.onecmd(" ".join(map(lambda x: quote(x), sys.argv[3:])))
+        except Exception as e:
             print '%s: %s' % (myname, e)
     else:
         print 'Usage: %s [username] [password]' % myname
