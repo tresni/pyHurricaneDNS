@@ -12,10 +12,10 @@ import html5lib
 import lxml
 
 __author__ = "Brian Hartvigsen <brian.andrew@brianandjenny.com>"
-__copyright__ = "Copyright 2014, Brian Hartvigsen"
+__copyright__ = "Copyright 2015, Brian Hartvigsen"
 __credits__ = ["Scott Yang", "Brian Hartvigsen"]
 __license__ = "MIT"
-__version__ = "0.2"
+__version__ = "0.3"
 
 # Basically we just want to make sure it's here.  We need lxml because
 # ElementTree does not support parent relationships in XPath

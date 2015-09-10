@@ -5,10 +5,10 @@ Inspired by & heavily borrowed from the EveryDNS Command Line tool/shell by
     Scott Yang: http://svn.fucoder.com/fucoder/pyeverydns/everydnscmd.py
 """
 __author__ = "Brian Hartvigsen <brian.andrew@brianandjenny.com>"
-__copyright__ = "Copyright 2014, Brian Hartvigsen"
+__copyright__ = "Copyright 2015, Brian Hartvigsen"
 __credits__ = ["Scott Yang", "Brian Hartvigsen"]
 __license__ = "MIT"
-__version__ = "0.2"
+__version__ = "0.3"
 
 import cmd
 import os
