@@ -8,13 +8,10 @@ __author__ = "Brian Hartvigsen <brian.andrew@brianandjenny.com>"
 __copyright__ = "Copyright 2015, Brian Hartvigsen"
 __credits__ = ["Scott Yang", "Brian Hartvigsen"]
 __license__ = "MIT"
-__version__ = "0.3"
+__version__ = "0.4"
 
 import cmd
-import os
-import re
-import sys
-
+from shlex import split as split_args
 import HurricaneDNS
 
 
@@ -78,7 +75,7 @@ class HurricaneDNSShell(cmd.Cmd):
 
     def complete_add(self, text, line, begidx, endidx):
         def filter_down(args, pos, possibiles):
-            start = args[pos-1] if len(args) == pos else None
+            start = args[pos - 1] if len(args) == pos else None
             final = filter(lambda x: x.startswith(start) if start else True, possibiles)
             return final
 
@@ -137,7 +134,8 @@ class HurricaneDNSShell(cmd.Cmd):
         return 1
 
     def complete_ls(self, text, line, begidx, endidx):
-        domains = filter(lambda x: x.startswith(text) if text else True, map(lambda x: x['domain'], self._get_hdns().cache_domains()))
+        domains = filter(lambda x: x.startswith(text) if text else True,
+                         map(lambda x: x['domain'], self._get_hdns().cache_domains()))
         return domains
 
     def do_ls(self, args):
@@ -206,47 +204,32 @@ class HurricaneDNSShell(cmd.Cmd):
 
 
 def main():
-    myname = os.path.basename(sys.argv[0])
-    if len(sys.argv) == 3:
-        try:
-            shell = HurricaneDNSShell(sys.argv[1], sys.argv[2])
-            if sys.stdin.isatty():
+    import argparse
+    from sys import exit, stdin
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-v', '--version', action='version', version="%%(prog)s %s (%s)" % (__version__, __author__))
+    parser.add_argument('username', help="Your HE DNS username")
+    parser.add_argument('password', help="Your HE DNS password")
+    parser.add_argument('command', nargs=argparse.REMAINDER,
+                        help="An optional command, if blank we drop into interactive mode")
+    options = parser.parse_args()
+
+    shell = HurricaneDNSShell(options.username, options.password)
+    try:
+        if not options.command:
+            if stdin.isatty():
                 shell.cmdloop()
             else:
-                for line in sys.stdin.readlines():
+                for line in stdin.readlines():
                     shell.onecmd(line)
-        except HurricaneDNS.HurricaneAuthenticationError as e:
-            print '%s: HE sent an error (%s)' % (myname, e)
-            sys.exit(1)
-        except HurricaneDNS.HurricaneError as e:
-            print '%s: %s' % (myname, e)
-    elif len(sys.argv) > 3:
-        try:
-            from pipes import quote
-            shell = HurricaneDNSShell(sys.argv[1], sys.argv[2])
-            shell.onecmd(" ".join(map(lambda x: quote(x), sys.argv[3:])))
-        except Exception as e:
-            print '%s: %s' % (myname, e)
-    else:
-        print 'Usage: %s [username] [password]' % myname
-
-
-def split_args(args):
-    args = re.findall(
-        '"([^"]*?)"(?:\s|$)' + '|' +  # double-quoted
-        "'([^']*?)'(?:\s|$)" + '|' +  # single-quoted
-        '([^\s]+)(?:\s|$)',           # unquoted
-        args.strip())
-
-    result = []
-    for arg in args:
-        for elm in arg:
-            if elm != '':
-                result.append(elm)
-                break
         else:
-            result.append('')
-    return result
+            from pipes import quote
+            shell.onecmd(" ".join(map(lambda x: quote(x), options.command)))
+    except HurricaneDNS.HurricaneAuthenticationError as e:
+        print '%s: HE sent an error (%s)' % (parser.prog, e)
+        exit(1)
+    except HurricaneDNS.HurricaneError as e:
+        print '%s: %s' % (parser.prog, e)
 
 
 if __name__ == '__main__':
