@@ -62,7 +62,7 @@ class HurricaneDNSShell(cmd.Cmd):
         """
         args = split_args(args)
         try:
-            if len(args) < 3:
+            if len(args) and len(args) < 3:
                 domain = args[0]
                 extra = {}
                 if len(args) == 2:
