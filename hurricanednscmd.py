@@ -172,7 +172,7 @@ class HurricaneDNSShell(cmd.Cmd):
                 template = '%%%ds %%-5s %%-%ds %%%ds %%6s' % (maxhost, maxvalue, maxttl)
                 print template % ('HOST', 'TYPE', 'VALUE', 'TTL', 'MX')
                 for record in records:
-                    print template % (record['host'], record['type'], record['value'], record['ttl'], record['priority'])
+                    print template % (record['host'], record['type'], record['value'], record['ttl'], record['mx'])
         else:
             domains = self._get_hdns().cache_domains()
             domains.sort(key=lambda item: item['domain'])
