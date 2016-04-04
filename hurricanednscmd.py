@@ -13,6 +13,10 @@ __version__ = "0.4"
 import cmd
 from shlex import split as split_args
 import HurricaneDNS
+from dns import zone
+from dns.rdataclass import *
+from dns.rdatatype import *
+
 
 
 def write_help(func):
@@ -168,7 +172,7 @@ class HurricaneDNSShell(cmd.Cmd):
                 template = '%%%ds %%-5s %%-%ds %%%ds %%6s' % (maxhost, maxvalue, maxttl)
                 print template % ('HOST', 'TYPE', 'VALUE', 'TTL', 'MX')
                 for record in records:
-                    print template % (record['host'], record['type'], record['value'], record['ttl'], record['mx'])
+                    print template % (record['host'], record['type'], record['value'], record['ttl'], record['priority'])
         else:
             domains = self._get_hdns().cache_domains()
             domains.sort(key=lambda item: item['domain'])
@@ -176,12 +180,91 @@ class HurricaneDNSShell(cmd.Cmd):
             for domain in domains:
                 print '%-9s %s' % (domain['type'], domain['domain'])
 
+    def do_import(self, args):
+        """!NAME
+        import - Import a domain from BIND zone file
+
+        !SYNOPSIS
+        import domain zone_file
+
+        !DESCRIPTION
+        Importing a BIND zone file into a domain. Just normal domain (not reserve) for now.
+
+        """
+        args = split_args(args)
+        try:
+            if len(args) and len(args) == 2:
+                domain = args[0]
+                zonedata = open(args[1], 'r').read()
+            else:
+                self._do_error('Invalid arguments')
+        except HurricaneDNS.HurricaneError as e:
+            self._do_error(e)
+
+        # check if domain already exists
+        domains = self._get_hdns().cache_domains()
+        for d in domains:
+            if d['domain'] == domain:
+                self._do_error('Domain %s already exists!' % domain)
+                return
+
+        # create the domain
+        self._get_hdns().add_domain(domain)
+
+        try:
+            Z = zone.from_text(zonedata, domain)
+        except SyntaxError, e:
+            if e.message:
+                self._do_error(e.message)
+            else:
+                self._do_error('Syntax error found in zone file')
+        except:
+            self._do_error('Unable to parse zone file')
+
+        for host, data in Z.iteritems():
+            if str(host) == '@':
+                name = domain
+            else:
+                name = '%s.%s' % (host, domain)
+            for r in data.rdatasets:
+                for rdata in r:
+                    if '*' in name:
+                        print("SKIPPING: ", name, to_text(r.rdtype), r.ttl, rdata)
+                    elif r.rdtype == SOA:
+                        print ("SKIPPING: ", name, to_text(r.rdtype), r.ttl, rdata)
+                    elif r.rdtype == NS:
+                        print ("SKIPPING: ", name, to_text(r.rdtype), r.ttl, rdata)
+                    elif r.rdtype == SRV:
+                        self._get_hdns().add_record(
+                            domain, name, to_text(r.rdtype),
+                            '%s %s %s' % (rdata.weight, rdata.port, rdata.target.to_text()),
+                            rdata.priority, r.ttl)
+                    elif r.rdtype == MX:
+                        self._get_hdns().add_record(
+                            domain, name, to_text(r.rdtype),
+                            rdata.exchange.to_text(),
+                            rdata.preference, r.ttl)
+                    else:
+                        if hasattr(rdata, 'address'):
+                            _value = rdata.address
+                        elif hasattr(rdata, 'value'):
+                            _value = rdata.value
+                        elif hasattr(rdata, 'target'):
+                            _value = rdata.target
+                        else:
+                            _value = ''
+                        self._get_hdns().add_record(
+                            domain, name, to_text(r.rdtype),
+                            _value,
+                            None, r.ttl)
+
     def emptyline(self):
         pass
 
     help_add = write_help(do_add)
     help_del = write_help(do_del)
     help_ls = write_help(do_ls)
+    help_import = write_help(do_import)
 
     def _do_error(self, errmsg):
         command = self.lastcmd.split()[0]
