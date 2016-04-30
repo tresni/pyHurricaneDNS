@@ -190,7 +190,6 @@ class HurricaneDNS(object):
         return self.__domains
 
     def list_domains(self):
-        self.login()
         res = self.__process()
         domains = {}
 
@@ -240,7 +239,6 @@ class HurricaneDNS(object):
         return d['records']
 
     def list_records(self, domain):
-        self.login()
         d = self.get_domain(domain)
         records = []
 
@@ -294,7 +292,7 @@ class HurricaneDNS(object):
             return True
 
         # Get our CGISESSID cookie
-        self.__process()
+        self.__process(login=True)
 
         # submit the login form
         try:
@@ -302,7 +300,7 @@ class HurricaneDNS(object):
                 'email': self.__username,
                 'pass': self.__password,
                 'submit': 'Login!'
-            })
+            }, login=True)
         except HurricaneError:
             raise HurricaneAuthenticationError("Invalid Username/Password")
 
@@ -314,7 +312,9 @@ class HurricaneDNS(object):
 
         return True
 
-    def __process(self, data=None):
+    def __process(self, data=None, login=False):
+        if not login:
+            self.login()
         if isinstance(data, dict) or isinstance(data, list):
             data = urllib.urlencode(data)
 
