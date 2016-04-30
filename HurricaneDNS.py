@@ -10,6 +10,7 @@ import urllib
 import urllib2
 import html5lib
 import lxml
+import warnings
 
 __author__ = "Brian Hartvigsen <brian.andrew@brianandjenny.com>"
 __copyright__ = "Copyright 2015, Brian Hartvigsen"
@@ -318,7 +319,10 @@ class HurricaneDNS(object):
         if isinstance(data, dict) or isinstance(data, list):
             data = urllib.urlencode(data)
 
-        res = html5lib.parse(self.__opener.open(HTTP_REQUEST_PATH, data), namespaceHTMLElements=False, treebuilder="lxml")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            res = html5lib.parse(self.__opener.open(HTTP_REQUEST_PATH, data),
+                                 namespaceHTMLElements=False, treebuilder="lxml")
 
         error = res.find('.//div[@id="content"]/div/div[@id="dns_err"]')
         if error is not None:
