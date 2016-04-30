@@ -1,5 +1,6 @@
-== REQUIREMENTS ==
+# HurricaneDNS
 
+## Requirements
  * python-html5lib
  * python-lxml
- * python-dns
+ * dnspython (optional - for importing BIND zones)

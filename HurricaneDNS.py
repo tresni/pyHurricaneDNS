@@ -50,7 +50,6 @@ class HurricaneDNS(object):
         ]
 
         self.__domains = {}
-        self.__ignore_errors = True
 
     def add_domain(self, domain, master=None, method=None):
         domain = domain.lower()
@@ -325,12 +324,13 @@ class HurricaneDNS(object):
             res = html5lib.parse(self.__opener.open(HTTP_REQUEST_PATH, data),
                                  namespaceHTMLElements=False, treebuilder="lxml")
 
-        if self.__ignore_errors:
-            error = None
-        else:
-            error = res.find('.//div[@id="content"]/div/div[@id="dns_err"]')
+        error = res.find('.//div[@id="content"]/div/div[@id="dns_err"]')
 
         if error is not None:
-            raise HurricaneError(error.text)
+            # This is not a real error...
+            if 'properly delegated' in error.text:
+                pass
+            else:
+                raise HurricaneError(error.text)
 
         return res

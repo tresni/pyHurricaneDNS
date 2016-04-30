@@ -13,10 +13,6 @@ __version__ = "0.4"
 import cmd
 from shlex import split as split_args
 import HurricaneDNS
-from dns import zone
-from dns.rdataclass import *
-from dns.rdatatype import *
-
 
 
 def write_help(func):
@@ -191,35 +187,43 @@ class HurricaneDNSShell(cmd.Cmd):
         Importing a BIND zone file into a domain. Just normal domain (not reserve) for now.
 
         """
-        args = split_args(args)
         try:
-            if len(args) and len(args) == 2:
-                domain = args[0]
+            from dns import zone
+            import dns.rdatatype
+        except ImportError as e:
+            self._do_error('You do not have python-dns installed!')
+            return
+
+        args = split_args(args)
+        if len(args) and len(args) == 2:
+            domain = args[0]
+            try:
                 zonedata = open(args[1], 'r').read()
-            else:
-                self._do_error('Invalid arguments')
-        except HurricaneDNS.HurricaneError as e:
-            self._do_error(e)
-
-        # check if domain already exists
-        domains = self._get_hdns().cache_domains()
-        for d in domains:
-            if d['domain'] == domain:
-                self._do_error('Domain %s already exists!' % domain)
+            except:
+                self._do_error('Unable to open %s for reading' % args[1])
                 return
-
-        # create the domain
-        self._get_hdns().add_domain(domain)
+        else:
+            self._do_error('Invalid arguments')
+            return
 
         try:
             Z = zone.from_text(zonedata, domain)
-        except SyntaxError, e:
+        except SyntaxError as e:
             if e.message:
                 self._do_error(e.message)
             else:
                 self._do_error('Syntax error found in zone file')
-        except:
+            return
+        except Exception as e:
             self._do_error('Unable to parse zone file')
+            return
+
+        # create the domain
+        try:
+            self._get_hdns().add_domain(domain)
+        except HurricaneDNS.HurricaneError as e:
+            self._do_error(e)
+            return
 
         for host, data in Z.iteritems():
             if str(host) == '@':
@@ -228,23 +232,19 @@ class HurricaneDNSShell(cmd.Cmd):
                 name = '%s.%s' % (host, domain)
             for r in data.rdatasets:
                 for rdata in r:
-                    if '*' in name:
-                        print("SKIPPING: ", name, to_text(r.rdtype), r.ttl, rdata)
-                    elif r.rdtype == SOA:
-                        print ("SKIPPING: ", name, to_text(r.rdtype), r.ttl, rdata)
-                    elif r.rdtype == NS:
-                        print ("SKIPPING: ", name, to_text(r.rdtype), r.ttl, rdata)
-                    elif r.rdtype == SRV:
-                        self._get_hdns().add_record(
-                            domain, name, to_text(r.rdtype),
-                            '%s %s %s' % (rdata.weight, rdata.port, rdata.target.to_text()),
-                            rdata.priority, r.ttl)
-                    elif r.rdtype == MX:
-                        self._get_hdns().add_record(
-                            domain, name, to_text(r.rdtype),
-                            rdata.exchange.to_text(),
-                            rdata.preference, r.ttl)
+                    if '*' in name or \
+                            r.rdtype == dns.rdatatype.SOA or \
+                            r.rdtype == dns.rdatatype.NS:
+                        print "SKIPPING:", name, dns.rdatatype.to_text(r.rdtype), r.ttl, rdata
+                        continue
+                    elif r.rdtype == dns.rdatatype.SRV:
+                        _value = '%s %s %s' % (rdata.weight, rdata.port, rdata.target.to_text())
+                        _priority = rdata.priority
+                    elif r.rdtype == dns.rdatatype.MX:
+                        _value = rdata.exchange.to_text()
+                        _priority = rdata.preference
                     else:
+                        _priority = None
                         if hasattr(rdata, 'address'):
                             _value = rdata.address
                         elif hasattr(rdata, 'value'):
@@ -253,10 +253,14 @@ class HurricaneDNSShell(cmd.Cmd):
                             _value = rdata.target
                         else:
                             _value = ''
-                        self._get_hdns().add_record(
-                            domain, name, to_text(r.rdtype),
-                            _value,
-                            None, r.ttl)
+
+                    try:
+                        self._get_hdns().add_record(domain, name, dns.rdatatype.to_text(rdata.rdtype),
+                                                    _value, _priority, r.ttl)
+                    except HurricaneDNS.HurricaneError as e:
+                        if "properly delegated" in str(e):
+                            pass
+                        self._do_error(e)
 
     def emptyline(self):
         pass
