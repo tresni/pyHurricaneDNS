@@ -42,6 +42,55 @@ class HurricaneDNSShell(cmd.Cmd):
     def completedefault(self, text, line, begidx, endidx):
         pass
 
+    def do_cp(self, args):
+        """!NAME
+        cp - copy records from one domain to another
+
+        !SYNOPSIS
+        cp src-domain target-domain
+
+        !DESCRIPTION
+        Copy all records from src-domain to target-domain. If target-domain
+        does not exist, it will be created.
+
+        """
+        args = split_args(args)
+        if len(args) < 2 or len(args) > 3:
+            self._do_error("Must specify both a source and target")
+            return
+
+        if len(args) == 3 and args[0].lower() != "-f":
+            self._do_error("If passing 3 arguments, first arg shoudl be -f")
+            return
+
+        existing = self._get_hdns().cache_domains()
+        existing = list(item['domain'] for item in existing)
+
+        src = args[0].lower()
+        target = args[1].lower()
+
+        if src not in existing:
+            self._do_error("There is no domain '%s', source must exist" % src)
+            return
+
+        if target not in existing:
+            print "Domain '%s' does not exist, attempting to create" % target
+            try:
+                self._get_hdns().add_domain(target)
+            except HurricaneDNS.HurricaneError as e:
+                self._do_error(e)
+                return
+
+        src_records = self._get_hdns().cache_records(src)
+
+        for record in src_records:
+            host = record['host'][::-1].replace(src[::-1], target[::-1], 1)[::-1]
+            if record['type'] == 'SOA':
+                continue
+            self._get_hdns().add_record(target, host, record['type'],
+                                        record['extended'], mx=record['mx'],
+                                        ttl=record['ttl'])
+
     def do_add(self, args):
         """!NAME
         add - Add a domain/record
@@ -269,6 +318,7 @@ class HurricaneDNSShell(cmd.Cmd):
     help_del = write_help(do_del)
     help_ls = write_help(do_ls)
     help_import = write_help(do_import)
+    help_cp = write_help(do_cp)
 
     def _do_error(self, errmsg):
         command = self.lastcmd.split()[0]
