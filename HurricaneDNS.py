@@ -222,11 +222,12 @@ class HurricaneDNS(object):
         raise HurricaneBadArgumentError('Record %s does not exist for domain "%s"' % (record_id, domain))
 
     def get_records(self, domain, host, rtype=None, value=None, mx=None, ttl=None):
+        rtype = rtype.lower()
         records = self.cache_records(domain)
         results = []
         for r in records:
             if (r['host'] == host and
-               (rtype is None or r['type'] == rtype) and
+               (rtype is None or r['type'].lower() == rtype) and
                (value is None or r['value'] == value) and
                (mx is None or r['mx'] == mx) and
                (ttl is None or r['ttl'] == ttl)):
