@@ -87,6 +87,8 @@ class HurricaneDNSShell(cmd.Cmd):
             host = record['host'][::-1].replace(src[::-1], target[::-1], 1)[::-1]
             if record['type'] == 'SOA':
                 continue
+            if 'extended' not in record:
+                record['extended'] = record['value']
             self._get_hdns().add_record(target, host, record['type'],
                                         record['extended'], mx=record['mx'],
                                         ttl=record['ttl'])
