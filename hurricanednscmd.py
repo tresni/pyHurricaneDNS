@@ -4,15 +4,17 @@
 Inspired by & heavily borrowed from the EveryDNS Command Line tool/shell by
     Scott Yang: http://svn.fucoder.com/fucoder/pyeverydns/everydnscmd.py
 """
+
+import cmd
+from shlex import split as split_args
+from distutils.util import strtobool
+import HurricaneDNS
+
 __author__ = "Brian Hartvigsen <brian.andrew@brianandjenny.com>"
 __copyright__ = "Copyright 2015, Brian Hartvigsen"
 __credits__ = ["Scott Yang", "Brian Hartvigsen"]
 __license__ = "MIT"
 __version__ = "0.4"
-
-import cmd
-from shlex import split as split_args
-import HurricaneDNS
 
 
 def write_help(func):
@@ -35,6 +37,24 @@ class HurricaneDNSShell(cmd.Cmd):
         self.__password = password
         self.__hdns = None
         self._make_prompt()
+
+    def parse_args(self, args):
+        args = split_args(args)
+        pargs = []
+        kwargs = {}
+        flags = []
+        for arg in args:
+            if "=" in arg:
+                (option, value) = arg.split("=")
+                if option == "type":
+                    option = "rtype"
+                kwargs[option] = value
+            elif arg[0] == "-":
+                flags.append(arg)
+            else:
+                pargs.append(arg)
+
+        return (pargs, kwargs, flags)
 
     def default(self, line):
         self._do_error('command not found')
@@ -168,12 +188,21 @@ class HurricaneDNSShell(cmd.Cmd):
         host records that match the arguments.
 
         """
-        args = split_args(args)
+        pargs, kwargs, flags = self.parse_args(args)
         try:
-            if len(args) == 1:
-                self._get_hdns().del_domain(args[0])
-            elif len(args) > 1:
-                self._get_hdns().del_records(*args)
+            if "-f" not in flags:
+                domain = pargs[0]
+                if len(pargs) > 1:
+                    domain = "%s from %s" % (" ".join(pargs[1:]), pargs[0])
+                confirmation = raw_input('Are you sure you want to delete %s? (y/n)' % domain)
+                if not strtobool(confirmation):
+                    return
+
+            if len(pargs) == 1:
+                self._get_hdns().del_domain(pargs[0])
+            elif len(pargs) > 1:
+                self._get_hdns().del_records(*pargs, **kwargs)
+
         except HurricaneDNS.HurricaneError as e:
             self._do_error(e)
 
@@ -202,11 +231,12 @@ class HurricaneDNSShell(cmd.Cmd):
         host records from the specified domains.
 
         """
-        if args:
+        pargs, _, _ = self.parse_args(args)
+        if pargs:
             existing = self._get_hdns().cache_domains()
             existing = set([item['domain'] for item in existing])
             records = []
-            for domain in split_args(args):
+            for domain in pargs:
                 if domain.lower() not in existing:
                     self._do_error('Invalid domain: ' + domain)
                     continue
@@ -245,7 +275,7 @@ class HurricaneDNSShell(cmd.Cmd):
             self._do_error('You do not have python-dns installed!')
             return
 
-        args = split_args(args)
+        args, _, _ = self.parse_args(args)
         if len(args) and len(args) == 2:
             domain = args[0]
             try:
