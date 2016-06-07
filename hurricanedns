@@ -6,9 +6,15 @@ Inspired by & heavily borrowed from the EveryDNS Command Line tool/shell by
 """
 
 from __future__ import print_function
+
+try:
+    from io import StringIO
+except ImportError:
+    from cStringIO import StringIO
+
 import cmd
-from shlex import split as split_args
 import pkg_resources
+from shlex import split as split_args
 import HurricaneDNS
 
 __version__ = pkg_resources.require("hurricanedns")[0].version
@@ -20,7 +26,6 @@ __license__ = "MIT"
 
 def write_help(func):
     def decorator(self):
-        from cStringIO import StringIO
         for line in StringIO(func.__doc__):
             line = line.strip()
             if line.startswith('!'):
