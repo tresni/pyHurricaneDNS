@@ -40,7 +40,7 @@ class HurricaneDNSShell(cmd.Cmd):
         self._make_prompt()
 
     def default(self, line):
-        self._do_error('command not found')
+        self._do_error('command not found', line.split()[0])
 
     def completedefault(self, text, line, begidx, endidx):
         pass
@@ -325,8 +325,9 @@ class HurricaneDNSShell(cmd.Cmd):
     help_import = write_help(do_import)
     help_cp = write_help(do_cp)
 
-    def _do_error(self, errmsg):
-        command = self.lastcmd.split()[0]
+    def _do_error(self, errmsg, command=None):
+        if not command:
+            command = self.lastcmd.split()[0]
         print('hdnssh: %s: %s' % (command, errmsg))
 
     def _get_hdns(self):
