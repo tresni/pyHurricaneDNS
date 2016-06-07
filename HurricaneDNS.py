@@ -112,7 +112,10 @@ class HurricaneDNS(object):
         except HurricaneError as e:
             raise HurricaneBadArgumentError(e)
 
-        if res.find('.//div[@id="dns_status"]') is None:
+        if res.find('.//div[@id="dns_err"]') is not None:
+            # this should mean duplicate records
+            pass
+        elif res.find('.//div[@id="dns_status"]') is None:
             raise HurricaneBadArgumentError('Record "%s" (%s) not added or modified for domain "%s"' % (host, rtype, domain))
         # HACK: Be better to invalidate a single record...
         d['records'] = None
@@ -330,6 +333,8 @@ class HurricaneDNS(object):
         if error is not None:
             # This is not a real error...
             if 'properly delegated' in error.text:
+                pass
+            elif 'record already exists' in error.text.lower():
                 pass
             else:
                 raise HurricaneError(error.text)
