@@ -348,13 +348,36 @@ class HurricaneDNSShell(cmd.Cmd):
 def main():
     import argparse
     from sys import exit, stdin
+    try:
+        import keyring
+        have_keyring = True
+    except ImportError:
+        have_keyring = False
+
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--version', action='version', version="%%(prog)s %s (%s)" % (__version__, __author__))
-    parser.add_argument('username', help="Your HE DNS username")
-    parser.add_argument('password', help="Your HE DNS password")
+    parser.add_argument('--username', '-u', help="Your HE DNS username", default=None, required=True)
+    parser.add_argument('--password', '-p', help="Your HE DNS password", default=None)
     parser.add_argument('command', nargs=argparse.REMAINDER,
                         help="An optional command, if blank we drop into interactive mode")
     options = parser.parse_args()
+
+    if not options.password:
+        if have_keyring:
+            options.password = keyring.get_password("hurricanednscmd", options.username)
+
+        if not options.password:
+            print('%s: Must supply username and password' % (parser.prog))
+            exit(1)
+
+    elif have_keyring:
+        from distutils.util import strtobool
+        try:
+            confirmation = raw_input('Would you like to store the password for %s to your keyring? (y/n) ' % options.username)
+        except NameError:
+            confirmation = input('Would you like to store the password for %s to your keyring? (y/n) ' % options.username)
+        if strtobool(confirmation):
+            keyring.set_password("hurricanednscmd", options.username, options.password)
 
     shell = HurricaneDNSShell(options.username, options.password)
     try:
