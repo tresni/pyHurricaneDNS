@@ -44,6 +44,12 @@ class HurricaneDNSShell(cmd.Cmd):
         self.__hdns = None
         self._make_prompt()
 
+    @staticmethod
+    def filter_down(args, pos, possibiles):
+        start = args[pos - 1] if len(args) == pos else None
+        final = list(filter(lambda x: x.startswith(start) if start else True, possibiles))
+        return final
+
     def default(self, line):
         self._do_error('command not found', line.split()[0])
 
@@ -133,11 +139,6 @@ class HurricaneDNSShell(cmd.Cmd):
             self._do_error(e)
 
     def complete_add(self, text, line, begidx, endidx):
-        def filter_down(args, pos, possibiles):
-            start = args[pos - 1] if len(args) == pos else None
-            final = filter(lambda x: x.startswith(start) if start else True, possibiles)
-            return final
-
         args = line.split()
         pos = len(args)
         if not text:
@@ -145,10 +146,10 @@ class HurricaneDNSShell(cmd.Cmd):
 
         domains = map(lambda x: x['domain'], self._get_hdns().cache_domains())
         if pos == 2:
-            return filter_down(args, pos, domains)
+            return self.filter_down(args, pos, domains)
         elif not args[1] in domains:
             if pos == 3:
-                return filter_down(args, pos, ["method=", "master="])
+                return self.filter_down(args, pos, ["method=", "master="])
             else:
                 return []
         else:
@@ -158,7 +159,7 @@ class HurricaneDNSShell(cmd.Cmd):
                     types = ["CNAME", "NS", "PTR", "TXT"]
                 else:
                     types = ["A", "AAAA", "CNAME", "MX", "NS", "TXT", "AFSDB", "HINFO", "RP", "LOC", "NAPTR", "PTR", "SSHFP", "SPF", "SRV"]
-                return filter_down(args, pos, types)
+                return self.filter_down(args, pos, types)
             else:
                 pass
 
@@ -193,8 +194,8 @@ class HurricaneDNSShell(cmd.Cmd):
         return 1
 
     def complete_ls(self, text, line, begidx, endidx):
-        domains = filter(lambda x: x.startswith(text) if text else True,
-                         map(lambda x: x['domain'], self._get_hdns().cache_domains()))
+        domains = list(filter(lambda x: x.startswith(text) if text else True,
+                         map(lambda x: x['domain'], self._get_hdns().cache_domains())))
         return domains
 
     def do_ls(self, args):
