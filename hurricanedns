@@ -186,6 +186,58 @@ class HurricaneDNSShell(cmd.Cmd):
         except HurricaneDNS.HurricaneError as e:
             self._do_error(e)
 
+    def complete_del(self, text, line, begidx, endidx):
+        args = line.split()
+        pos = len(args)
+        if not text:
+            pos += 1
+
+        domains = map(lambda x: x['domain'], self._get_hdns().cache_domains())
+        if pos <= 1:
+            return
+        elif pos == 2:
+            return self.filter_down(args, pos, domains)
+        else:
+            if args[1] in domains:
+                records = self._get_hdns().cache_records(args[1])
+                records = filter(lambda x: x['status'] != 'locked', records)
+            else:
+                records = None
+
+        if pos == 3:
+            records = map(lambda x: x['host'], records)
+            return self.filter_down(args, pos, records)
+        else:
+            records = filter(lambda x: x['host'].lower() == args[2].lower(), records)
+
+        if pos == 4:
+            types = map(lambda x: x['type'], records)
+            if types:
+                pass
+            elif args[1].endswith('.in-addr.arpa') or args[1].endswith('.ip6.arpa'):
+                types = ["CNAME", "NS", "PTR", "TXT"]
+            else:
+                types = ["A", "AAAA", "CNAME", "MX", "NS", "TXT", "AFSDB", "HINFO", "RP", "LOC", "NAPTR", "PTR", "SSHFP", "SPF", "SRV"]
+            return self.filter_down(args, pos, types)
+        else:
+            records = filter(lambda x: x['type'].lower() == args[3].lower(), records)
+
+        if pos == 5:
+            values = map(lambda x: x['extended'] if 'extended' in x else x['value'], records)
+            return self.filter_down(args, pos, values)
+        else:
+            records = filter(lambda x: (x['extended'] if 'extended' in x else x['value']).lower() == args[4].lower(), records)
+
+        if pos == 6:
+            mx = map(lambda x: x['mx'], records)
+            return self.filter_down(args, pos, mx)
+        else:
+            records = filter(lambda x: x['mx'] == args[5], records)
+
+        if pos == 7:
+            ttl = map(lambda x: x['ttl'], records)
+            return self.filter_down(args, pos, ttl)
+
     def do_EOF(self, args):
         print()
         return 1
