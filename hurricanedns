@@ -107,6 +107,21 @@ class HurricaneDNSShell(cmd.Cmd):
                                         record['extended'], mx=record['mx'],
                                         ttl=record['ttl'])
 
+    def complete_cp(self, text, line, begidx, endidx):
+        args = line.split()
+        pos = len(args)
+        if not text:
+            pos += 1
+
+        if pos < 2 or pos > 3:
+            return
+
+        domains = map(lambda x: x['domain'], self._get_hdns().cache_domains())
+        if pos == 3:
+            domains = filter(lambda x: x.lower() != args[1].lower(), domains)
+
+        return self.filter_down(args, pos, domains)
+
     def do_add(self, args):
         """!NAME
         add - Add a domain/record
