@@ -4,15 +4,17 @@
 Inspired by & heavily borrowed from the EveryDNS Command Line tool/shell by
     Scott Yang: http://svn.fucoder.com/fucoder/pyeverydns/everydnscmd.py
 """
+
+from __future__ import print_function
+import cmd
+from shlex import split as split_args
+import HurricaneDNS
+
 __author__ = "Brian Hartvigsen <brian.andrew@brianandjenny.com>"
 __copyright__ = "Copyright 2015, Brian Hartvigsen"
 __credits__ = ["Scott Yang", "Brian Hartvigsen"]
 __license__ = "MIT"
 __version__ = "0.4"
-
-import cmd
-from shlex import split as split_args
-import HurricaneDNS
 
 
 def write_help(func):
@@ -21,9 +23,9 @@ def write_help(func):
         for line in StringIO(func.__doc__):
             line = line.strip()
             if line.startswith('!'):
-                print line[1:].upper()
+                print(line[1:].upper())
             else:
-                print '        ' + line
+                print('        ' + line)
 
     return decorator
 
@@ -74,7 +76,7 @@ class HurricaneDNSShell(cmd.Cmd):
             return
 
         if target not in existing:
-            print "Domain '%s' does not exist, attempting to create" % target
+            print("Domain '%s' does not exist, attempting to create" % target)
             try:
                 self._get_hdns().add_domain(target)
             except HurricaneDNS.HurricaneError as e:
@@ -178,7 +180,7 @@ class HurricaneDNSShell(cmd.Cmd):
             self._do_error(e)
 
     def do_EOF(self, args):
-        print
+        print()
         return 1
 
     def do_exit(self, args):
@@ -217,15 +219,15 @@ class HurricaneDNSShell(cmd.Cmd):
                 maxvalue = max([len(item['value']) for item in records])
                 maxttl = max([len(item['ttl']) for item in records])
                 template = '%%%ds %%-5s %%-%ds %%%ds %%6s' % (maxhost, maxvalue, maxttl)
-                print template % ('HOST', 'TYPE', 'VALUE', 'TTL', 'MX')
+                print(template % ('HOST', 'TYPE', 'VALUE', 'TTL', 'MX'))
                 for record in records:
-                    print template % (record['host'], record['type'], record['value'], record['ttl'], record['mx'])
+                    print(template % (record['host'], record['type'], record['value'], record['ttl'], record['mx']))
         else:
             domains = self._get_hdns().cache_domains()
-            domains.sort(key=lambda item: item['domain'])
-            print 'TYPE       DOMAIN'
+            domains = sorted(domains, key=lambda item: item['domain'])
+            print('TYPE       DOMAIN')
             for domain in domains:
-                print '%-9s %s' % (domain['type'], domain['domain'])
+                print('%-9s %s' % (domain['type'], domain['domain']))
 
     def do_import(self, args):
         """!NAME
@@ -286,7 +288,7 @@ class HurricaneDNSShell(cmd.Cmd):
                     if '*' in name or \
                             r.rdtype == dns.rdatatype.SOA or \
                             r.rdtype == dns.rdatatype.NS:
-                        print "SKIPPING:", name, dns.rdatatype.to_text(r.rdtype), r.ttl, rdata
+                        print("SKIPPING:", name, dns.rdatatype.to_text(r.rdtype), r.ttl, rdata)
                         continue
                     elif r.rdtype == dns.rdatatype.SRV:
                         _value = '%s %s %s' % (rdata.weight, rdata.port, rdata.target.to_text())
@@ -324,7 +326,7 @@ class HurricaneDNSShell(cmd.Cmd):
 
     def _do_error(self, errmsg):
         command = self.lastcmd.split()[0]
-        print 'hdnssh: %s: %s' % (command, errmsg)
+        print('hdnssh: %s: %s' % (command, errmsg))
 
     def _get_hdns(self):
         if not self.__hdns:
@@ -338,7 +340,7 @@ class HurricaneDNSShell(cmd.Cmd):
         try:
             cmd.Cmd.cmdloop(self)
         except KeyboardInterrupt:
-            print
+            print()
             self.cmdloop()
 
 
@@ -365,10 +367,10 @@ def main():
             from pipes import quote
             shell.onecmd(" ".join(map(lambda x: quote(x), options.command)))
     except HurricaneDNS.HurricaneAuthenticationError as e:
-        print '%s: HE sent an error (%s)' % (parser.prog, e)
+        print('%s: HE sent an error (%s)' % (parser.prog, e))
         exit(1)
     except HurricaneDNS.HurricaneError as e:
-        print '%s: %s' % (parser.prog, e)
+        print('%s: %s' % (parser.prog, e))
 
 
 if __name__ == '__main__':

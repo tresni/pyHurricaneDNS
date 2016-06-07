@@ -4,10 +4,19 @@ Hurricane Electric DNS library module
 Inspired by EveryDNS Python library by Scott Yang:
     http://svn.fucoder.com/fucoder/pyeverydns/everydnslib.py
 """
-import cookielib
+try:
+    from http.cookiejar import CookieJar
+except ImportError:
+    from cookielib import CookieJar
+
+try:
+    from urllib.parse import urlencode
+    from urllib.request import build_opener, HTTPCookieProcessor
+except ImportError:
+    from urllib import urlencode
+    from urllib2 import build_opener, HTTPCookieProcessor
+
 import re
-import urllib
-import urllib2
 import html5lib
 import lxml
 import warnings
@@ -43,12 +52,8 @@ class HurricaneDNS(object):
         self.__username = username
         self.__password = password
         self.__account = None
-        self.__cookie = cookielib.CookieJar()
-        self.__opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.__cookie))
-        self.__opener.addheaders = [
-            ('User-Agent', HTTP_USER_AGENT),
-        ]
-
+        self.__cookie = CookieJar()
+        self.__opener = build_opener(HTTPCookieProcessor(self.__cookie))
         self.__domains = {}
 
     def add_domain(self, domain, master=None, method=None):
@@ -321,7 +326,7 @@ class HurricaneDNS(object):
         if not login:
             self.login()
         if isinstance(data, dict) or isinstance(data, list):
-            data = urllib.urlencode(data)
+            data = urlencode(data).encode("UTF-8")
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
