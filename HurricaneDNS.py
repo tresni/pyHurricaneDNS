@@ -16,16 +16,17 @@ except ImportError:
     from urllib import urlencode
     from urllib2 import build_opener, HTTPCookieProcessor
 
+import pkg_resources
 import re
+import warnings
 import html5lib
 import lxml
-import warnings
 
+__version__ = pkg_resources.require("hurricanedns")[0].version
 __author__ = "Brian Hartvigsen <brian.andrew@brianandjenny.com>"
 __copyright__ = "Copyright 2015, Brian Hartvigsen"
 __credits__ = ["Scott Yang", "Brian Hartvigsen"]
 __license__ = "MIT"
-__version__ = "0.3"
 
 # Basically we just want to make sure it's here.  We need lxml because
 # ElementTree does not support parent relationships in XPath

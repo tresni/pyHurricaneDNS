@@ -1,3 +1,6 @@
 *.pyc
 *.pyo
 temp
+build
+dist
+hurricanedns.egg-info

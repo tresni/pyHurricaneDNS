@@ -8,13 +8,14 @@ Inspired by & heavily borrowed from the EveryDNS Command Line tool/shell by
 from __future__ import print_function
 import cmd
 from shlex import split as split_args
+import pkg_resources
 import HurricaneDNS
 
+__version__ = pkg_resources.require("hurricanedns")[0].version
 __author__ = "Brian Hartvigsen <brian.andrew@brianandjenny.com>"
 __copyright__ = "Copyright 2015, Brian Hartvigsen"
 __credits__ = ["Scott Yang", "Brian Hartvigsen"]
 __license__ = "MIT"
-__version__ = "0.4"
 
 
 def write_help(func):
