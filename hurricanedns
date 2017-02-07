@@ -8,9 +8,10 @@ Inspired by & heavily borrowed from the EveryDNS Command Line tool/shell by
 from __future__ import print_function
 
 try:
-    from io import StringIO
-except ImportError:
     from cStringIO import StringIO
+except ImportError:
+    from io import StringIO
+
 
 import cmd
 import pkg_resources
