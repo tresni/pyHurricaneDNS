@@ -6,7 +6,7 @@ except ImportError:
     from distutils.core import setup
 
 setup(name='hurricanedns',
-      version='1.0',
+      version='1.0.1',
       description='Hurricane Electric DNS python library',
       author='Brian Hartvigsen',
       author_email='brian.andrew@brianandjenny.com',
