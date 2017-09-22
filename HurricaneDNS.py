@@ -272,7 +272,7 @@ class HurricaneDNS(object):
                     'id': data[1].text,
                     'status': status,
                     'host': data[2].text,
-                    'type': data[3].find('img').get('data'),
+                    'type': data[3].find('span').get('data'),
                     'ttl': data[4].text,
                     'mx': data[5].text,
                     'value': data[6].text,
