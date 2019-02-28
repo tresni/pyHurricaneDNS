@@ -49,13 +49,13 @@ class HurricaneBadArgumentError(HurricaneError):
 
 
 class HurricaneDNS(object):
-    def __init__(self, username, password):
-        self.__username = username
-        self.__password = password
+    def __init__(self, username, password, totp=None):
         self.__account = None
         self.__cookie = CookieJar()
         self.__opener = build_opener(HTTPCookieProcessor(self.__cookie))
         self.__domains = {}
+
+        self.login(username, password, totp)
 
     def add_domain(self, domain, master=None, method=None):
         domain = domain.lower()
@@ -297,23 +297,32 @@ class HurricaneDNS(object):
             } for r in rows]
         return records
 
-    def login(self):
+    def login(self, username, password, totp=None):
         # Are we already logged in?
         if self.__account is not None:
             return True
 
         # Get our CGISESSID cookie
-        self.__process(login=True)
+        self.__process()
 
         # submit the login form
         try:
             res = self.__process({
-                'email': self.__username,
-                'pass': self.__password,
+                'email': username,
+                'pass': password,
                 'submit': 'Login!'
-            }, login=True)
+            })
         except HurricaneError:
             raise HurricaneAuthenticationError("Invalid Username/Password")
+
+        if res.find('.//input[@type="text"][@name="tfacode"]') is not None:
+            try:
+                res = self.__process({
+                    'tfacode': totp,
+                    'submit': 'Submit'
+                })
+            except HurricaneError:
+                raise HurricaneAuthenticationError("Invalid 2FA code")
 
         account = res.find('.//input[@type="hidden"][@name="account"]').get('value')
         if account:
@@ -323,9 +332,7 @@ class HurricaneDNS(object):
 
         return True
 
-    def __process(self, data=None, login=False):
-        if not login:
-            self.login()
+    def __process(self, data=None):
         if isinstance(data, dict) or isinstance(data, list):
             data = urlencode(data).encode("UTF-8")
 

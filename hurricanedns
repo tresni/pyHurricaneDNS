@@ -38,12 +38,14 @@ def write_help(func):
 
 
 class HurricaneDNSShell(cmd.Cmd):
-    def __init__(self, username, password):
+    def __init__(self, username, password, tfa):
         cmd.Cmd.__init__(self)
         self.__username = username
         self.__password = password
+        self.__tfa = tfa
         self.__hdns = None
         self._make_prompt()
+        self._get_hdns()
 
     @staticmethod
     def filter_down(args, pos, possibiles):
@@ -406,7 +408,7 @@ class HurricaneDNSShell(cmd.Cmd):
 
     def _get_hdns(self):
         if not self.__hdns:
-            self.__hdns = HurricaneDNS.HurricaneDNS(self.__username, self.__password)
+            self.__hdns = HurricaneDNS.HurricaneDNS(self.__username, self.__password, self.__tfa)
         return self.__hdns
 
     def _make_prompt(self):
@@ -427,12 +429,13 @@ def main():
     parser.add_argument('-v', '--version', action='version', version="%%(prog)s %s (%s)" % (__version__, __author__))
     parser.add_argument('username', help="Your HE DNS username")
     parser.add_argument('password', help="Your HE DNS password")
+    parser.add_argument('--tfa', '-t', type=int, help="Your 2fa code")
     parser.add_argument('command', nargs=argparse.REMAINDER,
                         help="An optional command, if blank we drop into interactive mode")
     options = parser.parse_args()
 
-    shell = HurricaneDNSShell(options.username, options.password)
     try:
+        shell = HurricaneDNSShell(options.username, options.password, options.tfa)
         if not options.command:
             if stdin.isatty():
                 shell.cmdloop()
