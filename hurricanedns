@@ -176,7 +176,9 @@ class HurricaneDNSShell(cmd.Cmd):
                 if args[1].endswith('.in-addr.arpa') or args[1].endswith('.ip6.arpa'):
                     types = ["CNAME", "NS", "PTR", "TXT"]
                 else:
-                    types = ["A", "AAAA", "CNAME", "MX", "NS", "TXT", "AFSDB", "HINFO", "RP", "LOC", "NAPTR", "PTR", "SSHFP", "SPF", "SRV"]
+                    types = ["A", "AAAA", "CNAME", "ALIAS", "MX", "NS", "TXT",
+                             "CAA", "AFSDB", "HINFO", "RP", "LOC", "NAPTR",
+                             "PTR", "SSHFP", "SPF", "SRV"]
                 return self.filter_down(args, pos, types)
             else:
                 pass
